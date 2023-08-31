@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Linq;
 
 namespace RatingCalculator
 {
@@ -15,7 +16,8 @@ namespace RatingCalculator
             public int priority { get; set; }
             public double score { get; set; }
             public string specialty { get; set; }
-
+            public int numSpecialty { get; set; }
+            public int sizeSpecialty { get; set; }
             public double percent { get; set; }
         }
 
@@ -25,14 +27,26 @@ namespace RatingCalculator
             Console.OutputEncoding = Encoding.GetEncoding(1251);
 
             //загальні списки та рейтинги до спеціальностей
-            List<List<Entrant>> edbo = new List<List<Entrant>>();
+            List<List<Entrant>> edbo = new List<List<Entrant>>();//список усіх студентів усіх спеціальностей
             List<List<Entrant>> rating = new List<List<Entrant>>();
-            List<List<Entrant>> firstRunList = new List<List<Entrant>>();
+            List<List<Entrant>> firstRunList = new List<List<Entrant>>();//Список студентів на спеціальності з найменшим пріорітетом
 
-            //кількість спеціальностей
-            int countSpeciality = 2;
+            //базова частина для шляху файлів
+            //string baseExportFilePath = Path.Combine(Environment.CurrentDirectory+ "..", "Export");
+            string baseExportFilePath = Path.GetFullPath(Directory.GetCurrentDirectory() + "\\..\\..\\Export\\");
+            string baseImportFilePath = Path.Combine(Environment.CurrentDirectory, "..", "..", "Import");
 
-            //ініціалізація списків усіх студентів, яку подалися на спеціальності та тих, хто проходить на спеціальності
+            //шляхи до даних
+            List<string> filePaths = new List<string>(Directory.GetFiles(baseImportFilePath, "*.csv"));
+
+            int countSpeciality = filePaths.Count;
+
+            if (countSpeciality == 0)
+            {
+                return;
+            }
+
+            //ініціалізація списків усіх студентів, які подалися на спеціальності та тих, хто проходить на спеціальності
             for (int a = 0; a < countSpeciality; a++)
             {
                 edbo.Add(new List<Entrant>());
@@ -40,22 +54,7 @@ namespace RatingCalculator
                 firstRunList.Add(new List<Entrant>());
             }
 
-            //базова частина для шляху файлів
-            string baseFilePath = "C:\\Users\\poijn\\Desktop\\";
-            
-            //шляхи до даних
-            List<string> filePaths = new List<string>
-            {
-            baseFilePath + "Процеси.csv",
-            baseFilePath + "Системи.csv",
-            //baseFilePath + "122_Інформаційні управляючі системи та технології.csv",
-            //baseFilePath + "122_Інформаційні технології проектування.csv",
-            //baseFilePath + "122_Системи штучного інтелекту.csv",
-            //baseFilePath + "122_Системне проектування.csv",
-            //baseFilePath + "122_Управління проектами в галузі інформаційних технологій.csv"
-            };
-            
-            //зменшую значення кількостей спеціальностей для використання у індексах
+            //зменшую значення кількостей спеціальностей для індексації
             countSpeciality--;
 
             //зчитування даних з файлів у загальний список абітурієнтів
@@ -65,7 +64,6 @@ namespace RatingCalculator
                 {
                     while (!reader.EndOfStream)
                     {
-
                         string line = reader.ReadLine();
                         string[] fields = line.Split(';');//Розділити рядок на поля
 
@@ -77,7 +75,9 @@ namespace RatingCalculator
                                 fullName = fields[0],
                                 priority = int.Parse(fields[1]),
                                 score = double.Parse(fields[2]),
-                                specialty = fields[3]
+                                specialty = fields[3],
+                                numSpecialty = int.Parse(fields[4]),
+                                sizeSpecialty = int.Parse(fields[5])
                             };
                             edbo[countSpeciality].Add(newEntrant);
                         }
@@ -86,27 +86,26 @@ namespace RatingCalculator
                 countSpeciality--;
             }
 
-            List<Entrant> edboRating = mergeLists(edbo);
-            sortListByRating(edboRating);
+            List<Entrant> edboRating = mergeLists(edbo);//зібрав усіх студентів в єдиний List
+            sortListByRating(edboRating);//відосртував по рейтингу
+            List<Entrant> lowestPriority = allocationLowestPriority(edboRating);//виділяємо найменші пріорітети студентів
+            List<string> uniqueSpecialties = edboRating.Select(e => e.specialty).Distinct().ToList();//список спеціальностей серед вступників
 
-
-            /*List<Entrant> lowestPriority = allocationLowestPriority(edboRating);
-
-            foreach (var ent in lowestPriority)
+            foreach (var ent in lowestPriority)//розбиваємо List<Entrant> з найменшими пріорітетами на List<List<Entrant>> по спеціальностям
             {
-                addToRating(firstRunList, ent);
+                addToRating(firstRunList, ent, uniqueSpecialties);//firstRunList - ліст, який містить найменші пріорітети по спеціальностям List<LisT<Entrant>>
             }
 
-            //Занесення 1 пріорітетів в рейтинги
+            //Занесення найменших пріорітетів в рейтинги
             for (int b = 0; b < firstRunList.Count; b++)
             {
                 for (int c = 0; c < firstRunList[b].Count; c++)
                 {
-                        rating[b].Add(firstRunList[b][c]);
+                    rating[b].Add(firstRunList[b][c]);
                 }
             }
 
-            //сортуємо абітурієнтів 1 пріорітетів по рейтингу
+            //сортуємо абітурієнтів з найменшими пріорітетами по рейтингу
             foreach (var list in rating)
             {
                 sortListByRating(list);
@@ -115,33 +114,32 @@ namespace RatingCalculator
             //цикл обробки всіх пріорітетів
             for (int f = 0; f <= 4; f++)
             {
-
                 //Видаляємо абітурієнтів, які не пройшли та додаємо їх по наступному пріорітету
-                modifyingTheRating(rating, edbo);
+                modifyingTheRating(rating, edbo, uniqueSpecialties);
                 //сортування лістів
                 foreach (var list in rating)
                 {
                     sortListByRating(list);
                 }
-
-
             }
 
             //Створення файлу з результатами для вступу
+            Directory.CreateDirectory(baseExportFilePath);
             foreach (var spec in rating)
             {
                 //називаємо файл по спеціальності
-                string entryFilePath = baseFilePath + spec[0].specialty + ".csv";
+                Console.ReadLine();
+                string entryFilePath = baseExportFilePath + spec[0].specialty + ".csv";
                 createCSVFile(spec, entryFilePath);
             }
-            
+
             //створюємо рейтинговий список для стипендій
-            List<Entrant> studentsRating = mergeLists(rating);*/
+            List<Entrant> studentsRating = mergeLists(rating);
 
 
             List<Entrant> studentsRating2 = trimRating(edboRating, 40);
 
-            string ratingFilePath = baseFilePath + "Rating.csv";
+            string ratingFilePath = baseExportFilePath + "Rating.csv";
 
             //Створення файлу з результатами для стипендій
             createCSVFile(studentsRating2, ratingFilePath);
@@ -180,65 +178,43 @@ namespace RatingCalculator
         private static List<Entrant> allocationLowestPriority(List<Entrant> edbo)
         {
             List<Entrant> LowestPriority = new List<Entrant>();
-            //LowestPriority.Add(edbo[0]);
+
             for (int i = 0; i < edbo.Count - 1; i++)
             {
-                    double score1 = Convert.ToDouble(edbo[i].score);
-                    double score2 = Convert.ToDouble(edbo[i + 1].score);
+                double score1 = Convert.ToDouble(edbo[i].score);
+                double score2 = Convert.ToDouble(edbo[i + 1].score);
 
-                    string fullName1 = edbo[i].fullName;
-                    string fullName2 = edbo[i + 1].fullName;
+                string fullName1 = edbo[i].fullName;
+                string fullName2 = edbo[i + 1].fullName;
 
-                    
-                    if ((fullName1 != fullName2))
-                    {
-                        LowestPriority.Add(edbo[i]);
-                    }
+
+                if ((fullName1 != fullName2))
+                {
+                    LowestPriority.Add(edbo[i]);
+                }
                 if (i == edbo.Count - 2)
                 {
-                    LowestPriority.Add(edbo[i+1]);
+                    LowestPriority.Add(edbo[i + 1]);
                 }
             }
             return LowestPriority;
         }
 
-
-
         //додаємо отриманого абітурієнта у відповідний рейтинговий список
-        private static void addToRating(List<List<Entrant>> rating, Entrant ent)
+        private static void addToRating(List<List<Entrant>> rating, Entrant ent, List<string> uniqueSpec)
         {
-            if (ent.specialty == "Науки про дані")
+            for (int counterSpec = 0; counterSpec < uniqueSpec.Count; counterSpec++)
             {
-                rating[6].Add(ent);
-            }
-            else if (ent.specialty == "Інформатика")
-            {
-                rating[5].Add(ent);
-            }
-            else if (ent.specialty == "Інформаційні управляючі системи та технології")
-            {
-                rating[4].Add(ent);
-            }
-            else if (ent.specialty == "Інформаційні технології проектування")
-            {
-                rating[3].Add(ent);
-            }
-            else if (ent.specialty == "Системи штучного інтелекту")
-            {
-                rating[2].Add(ent);
-            }
-            else if (ent.specialty == "Системне проектування")
-            {
-                rating[1].Add(ent);
-            }
-            else if (ent.specialty == "Управління проектами в галузі інформаційних технологій")
-            {
-                rating[0].Add(ent);
+                if (ent.specialty == uniqueSpec[counterSpec])
+                {
+                    rating[counterSpec].Add(ent);
+                    return;
+                }
             }
         }
 
         //Бульбашкове сортування по значенню рейтингу
-        private static void sortListByRating(List <Entrant> rating)
+        private static void sortListByRating(List<Entrant> rating)
         {
 
             for (int i = 0; i < rating.Count - 1; i++)
@@ -294,7 +270,7 @@ namespace RatingCalculator
                     int prioirity1 = rating[j].priority;
                     int prioirity2 = rating[j + 1].priority;
 
-                    if (string.Compare(fullName1, fullName2) == 0 && score1==score2 && prioirity1<prioirity2)
+                    if (string.Compare(fullName1, fullName2) == 0 && score1 == score2 && prioirity1 < prioirity2)
                     {
                         Entrant temp = rating[j];
                         rating[j] = rating[j + 1];
@@ -324,168 +300,52 @@ namespace RatingCalculator
             }
         }
 
-        //Видалення абітурієнтів, які не пройшли по поточному пріорітету та додавання їй у списки по наступному
-        private static void modifyingTheRating(List<List<Entrant>> rating, List<List<Entrant>> edbo)
+        //Видалення абітурієнтів, які не пройшли по поточному пріорітету та додавання їх у списки по наступному
+        private static void modifyingTheRating(List<List<Entrant>> rating, List<List<Entrant>> edbo, List<string> uniqueSpecialties)
         {
 
             for (int d = 0; d < rating.Count; d++)
             {
-                switch (d)
+                for (int e = rating[d].Count - 1; e >= 0; e--)
                 {
-                    case 6://Data Science
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
+                    if (e >= rating[d][0].sizeSpecialty)
+                    {
+                        sortListByRating(rating[d]);
+                        Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
+                        if (newEntrant != null)
                         {
-                            //19
-                            if (e >= 19)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
+                            addToRating(rating, newEntrant, uniqueSpecialties);
                         }
-
-                        break;
-
-                    case 5://Інформатика
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
-                        {
-                            if (e >= 27)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
-                        }
-
-                        break;
-
-                    case 4://Інформаційні управляючі системи та технології
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
-                        {
-                            
-                            if (e >= 17)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
-                        }
-
-                        break;
-                    case 3://Інформаційні технології проєктування
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
-                        {
-                            
-                            if (e >= 22)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
-                        }
-
-                        break;
-                    case 2://Системи штучного інтелекту
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
-                        {
-                            
-                            if (e >= 15)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
-                        }
-
-                        break;
-                    case 1://Системне проєктування
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
-                        {
-                            
-                            if (e >= 15)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
-                        }
-
-                        break;
-                    case 0://Управління проєктами в галузі інформаційних технологій
-
-                        for (int e = rating[d].Count - 1; e >= 0; e--)
-                        {
-                            if (e >= 15)
-                            {
-                                sortListByRating(rating[d]);
-                                Entrant newEntrant = findTheFollowingPriority(edbo, rating[d][e], rating[d][e].priority);
-                                if (newEntrant != null)
-                                {
-                                    addToRating(rating, newEntrant);
-                                }
-                                rating[d].RemoveAt(e);
-                            }
-                        }
-
-                        break;
+                        rating[d].RemoveAt(e);
+                    }
                 }
             }
         }
 
         private static void createCSVFile(List<Entrant> rating, string filePath)
         {
-                
-                using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
+
+            using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
+            {
+                // Записуємо заголовок CSV файлу
+                writer.WriteLine("ПІБ;Пріорітет;Заг_бал;Спеціальність");
+
+
+                // Записуємо дані абітурієнтів у CSV файл
+                foreach (var ent in rating)
                 {
-                    // Записуємо заголовок CSV файлу
-                    writer.WriteLine("ПІБ;Пріорітет;Заг_бал;Спеціальність");
-
-
-                    // Записуємо дані абітурієнтів у CSV файл
-                    foreach (var ent in rating)
-                    {
-                        writer.WriteLine($"{ent.fullName};{ent.score};{ent.percent}");
-                    }
+                    writer.WriteLine($"{ent.fullName};{ent.score};{ent.percent}");
                 }
+            }
         }
 
         private static List<Entrant> mergeLists(List<List<Entrant>> rating)
         {
             List<Entrant> mergeList = new List<Entrant>();
 
-            foreach (var spec in rating) 
+            foreach (var spec in rating)
             {
-                foreach(var ent in spec)
+                foreach (var ent in spec)
                 {
                     mergeList.Add(ent);
                 }
@@ -500,11 +360,9 @@ namespace RatingCalculator
 
             for (int f = rating.Count - 1; f >= 0; f--)
             {
-                rating[f].percent = ((double)(f+1
+                rating[f].percent = ((double)(f + 1
                     ) / rating.Count) * 100;
-                Console.WriteLine(rating[f].percent);
             }
-            Console.ReadLine();
             return rating;
         }
     }
