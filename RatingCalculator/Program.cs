@@ -90,6 +90,7 @@ namespace RatingCalculator
             sortListByRating(edboRating);//відосртував по рейтингу
             List<Entrant> lowestPriority = allocationLowestPriority(edboRating);//виділяємо найменші пріорітети студентів
             List<string> uniqueSpecialties = edboRating.Select(e => e.specialty).Distinct().ToList();//список спеціальностей серед вступників
+            List<int> uniqueNumSpecialties = edboRating.Select(e => e.numSpecialty).Distinct().ToList();//список спеціальностей серед вступників
 
             foreach (var ent in lowestPriority)//розбиваємо List<Entrant> з найменшими пріорітетами на List<List<Entrant>> по спеціальностям
             {
@@ -128,21 +129,17 @@ namespace RatingCalculator
             foreach (var spec in rating)
             {
                 //називаємо файл по спеціальності
-                Console.ReadLine();
                 string entryFilePath = baseExportFilePath + spec[0].specialty + ".csv";
-                createCSVFile(spec, entryFilePath);
+                createCSVFile(spec, entryFilePath, false);
             }
 
-            //створюємо рейтинговий список для стипендій
-            List<Entrant> studentsRating = mergeLists(rating);
-
-
-            List<Entrant> studentsRating2 = trimRating(edboRating, 40);
-
-            string ratingFilePath = baseExportFilePath + "Rating.csv";
-
-            //Створення файлу з результатами для стипендій
-            createCSVFile(studentsRating2, ratingFilePath);
+            List<List<Entrant>> studentsRating = distributionBySpecialtyNumber(rating, uniqueNumSpecialties);//розділяємо студентів по номерам спеціальностей
+            foreach (var listRating in studentsRating)
+            {
+                List<Entrant> specialtyRating = calculationOfThePercentagePosition(listRating);
+                string ratingFilePath = baseExportFilePath + $"{specialtyRating[0].numSpecialty}_Рейтинг.csv";
+                createCSVFile(specialtyRating, ratingFilePath, true);
+            }
         }
 
         //Пошук наступного пріорітету для абітурієнта, який не пройшов по поточному
@@ -156,7 +153,6 @@ namespace RatingCalculator
                     {
                         return enttryFromEdbo;
                     }
-                    /*
                     else if (ent.fullName == enttryFromEdbo.fullName && enttryFromEdbo.priority == ent.priority + 1 && ent.priority + 2 <= 5)
                     {
                         return enttryFromEdbo;
@@ -169,7 +165,6 @@ namespace RatingCalculator
                     {
                         return enttryFromEdbo;
                     }
-                    */
                 }
             }
             return null;
@@ -322,19 +317,36 @@ namespace RatingCalculator
             }
         }
 
-        private static void createCSVFile(List<Entrant> rating, string filePath)
+        private static void createCSVFile(List<Entrant> rating, string filePath, bool isNeedPercentages)
         {
 
-            using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
+            if (!isNeedPercentages)
             {
-                // Записуємо заголовок CSV файлу
-                writer.WriteLine("ПІБ;Пріорітет;Заг_бал;Спеціальність");
-
-
-                // Записуємо дані абітурієнтів у CSV файл
-                foreach (var ent in rating)
+                using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
                 {
-                    writer.WriteLine($"{ent.fullName};{ent.score};{ent.percent}");
+                    // Записуємо заголовок CSV файлу
+                    writer.WriteLine("ПІБ;Пріорітет;Номер спеціальності;Спеціальність;Заг. бал");
+
+
+                    // Записуємо дані абітурієнтів у CSV файл
+                    foreach (var ent in rating)
+                    {
+                        writer.WriteLine($"{ent.fullName};{ent.priority};{ent.numSpecialty};{ent.specialty};{ent.score}");
+                    }
+                }
+            }
+            else
+            {
+                using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
+                {
+                    // Записуємо заголовок CSV файлу
+                    writer.WriteLine("ПІБ;Пріорітет;Номер спеціальності;Спеціальність;Заг. бал;Відсоткове положення");
+
+                    // Записуємо дані абітурієнтів у CSV файл
+                    foreach (var ent in rating)
+                    {
+                        writer.WriteLine($"{ent.fullName};{ent.priority};{ent.numSpecialty};{ent.specialty};{ent.score};{Math.Round(ent.percent,3)}");
+                    }
                 }
             }
         }
@@ -354,14 +366,40 @@ namespace RatingCalculator
             return mergeList;
         }
 
-        private static List<Entrant> trimRating(List<Entrant> rating, double percent)
+        private static List<List<Entrant>> distributionBySpecialtyNumber(List<List<Entrant>> rating, List<int> uniqueNumSpec)
         {
-            //int limit = (int)Math.Floor(rating.Count * (percent / 100));
+            List<List<Entrant>> distributedList = new List<List<Entrant>>();
 
+            for (int a = 0; a < uniqueNumSpec.Count; a++)
+            {
+                distributedList.Add(new List<Entrant>());
+            }
+
+            for (int bb = 0; bb < uniqueNumSpec.Count; bb++)
+            {
+                foreach (var spec in rating)
+                {
+                    foreach (var ent in spec)
+                    {
+                        if (ent.numSpecialty == uniqueNumSpec[bb])
+                        {
+                            distributedList[bb].Add(ent);
+                        }
+                    }
+                }
+            }
+            foreach(var numSpec in distributedList)
+            {
+                sortListByRating(numSpec);
+            }
+                       return distributedList;
+        }
+
+        private static List<Entrant> calculationOfThePercentagePosition(List<Entrant> rating)
+        {
             for (int f = rating.Count - 1; f >= 0; f--)
             {
-                rating[f].percent = ((double)(f + 1
-                    ) / rating.Count) * 100;
+                rating[f].percent = ((double)(f + 1) / rating.Count) * 100;
             }
             return rating;
         }
