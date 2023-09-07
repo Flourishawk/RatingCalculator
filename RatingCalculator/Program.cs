@@ -31,6 +31,11 @@ namespace RatingCalculator
             List<List<Entrant>> rating = new List<List<Entrant>>();
             List<List<Entrant>> firstRunList = new List<List<Entrant>>();//Список студентів на спеціальності з найменшим пріорітетом
 
+            List<Entrant> lowestPriority = new List<Entrant>();
+            List<Entrant> mergeList = new List<Entrant>();
+            List<List<Entrant>> distributedList = new List<List<Entrant>>();
+
+
             //базова частина для шляху файлів
             //string baseExportFilePath = Path.Combine(Environment.CurrentDirectory+ "..", "Export");
             string baseExportFilePath = Path.GetFullPath(Directory.GetCurrentDirectory() + "\\..\\..\\Export\\");
@@ -86,11 +91,11 @@ namespace RatingCalculator
                 countSpeciality--;
             }
 
-            List<Entrant> edboRating = mergeLists(edbo);//зібрав усіх студентів в єдиний List
-            sortListByRating(edboRating);//відосртував по рейтингу
-            List<Entrant> lowestPriority = allocationLowestPriority(edboRating);//виділяємо найменші пріорітети студентів
-            List<string> uniqueSpecialties = edboRating.Select(e => e.specialty).Distinct().ToList();//список спеціальностей серед вступників
-            List<int> uniqueNumSpecialties = edboRating.Select(e => e.numSpecialty).Distinct().ToList();//список спеціальностей серед вступників
+            mergeLists(edbo, out mergeList);//зібрав усіх студентів в єдиний List
+            sortListByRating(mergeList);//відосртував по рейтингу
+            allocationLowestPriority(mergeList, out lowestPriority);//виділяємо найменші пріорітети студентів
+            List<string> uniqueSpecialties = mergeList.Select(e => e.specialty).Distinct().ToList();//список спеціальностей серед вступників
+            List<int> uniqueNumSpecialties = mergeList.Select(e => e.numSpecialty).Distinct().ToList();//список спеціальностей серед вступників
 
             foreach (var ent in lowestPriority)//розбиваємо List<Entrant> з найменшими пріорітетами на List<List<Entrant>> по спеціальностям
             {
@@ -133,12 +138,12 @@ namespace RatingCalculator
                 createCSVFile(spec, entryFilePath, false);
             }
 
-            List<List<Entrant>> studentsRating = distributionBySpecialtyNumber(rating, uniqueNumSpecialties);//розділяємо студентів по номерам спеціальностей
-            foreach (var listRating in studentsRating)
+            distributionBySpecialtyNumber(rating, uniqueNumSpecialties, out distributedList);//розділяємо студентів по номерам спеціальностей
+            foreach (var listRating in distributedList)
             {
-                List<Entrant> specialtyRating = calculationOfThePercentagePosition(listRating);
-                string ratingFilePath = baseExportFilePath + $"{specialtyRating[0].numSpecialty}_Рейтинг.csv";
-                createCSVFile(specialtyRating, ratingFilePath, true);
+                calculationOfThePercentagePosition(listRating);
+                string ratingFilePath = baseExportFilePath + $"{listRating[0].numSpecialty}_Рейтинг.csv";
+                createCSVFile(listRating, ratingFilePath, true);
             }
         }
 
@@ -170,9 +175,9 @@ namespace RatingCalculator
             return null;
         }
 
-        private static List<Entrant> allocationLowestPriority(List<Entrant> edbo)
+        private static List<Entrant> allocationLowestPriority(List<Entrant> edbo, out List<Entrant> lowestPriority)
         {
-            List<Entrant> LowestPriority = new List<Entrant>();
+            lowestPriority = new List<Entrant>();
 
             for (int i = 0; i < edbo.Count - 1; i++)
             {
@@ -182,17 +187,16 @@ namespace RatingCalculator
                 string fullName1 = edbo[i].fullName;
                 string fullName2 = edbo[i + 1].fullName;
 
-
                 if ((fullName1 != fullName2))
                 {
-                    LowestPriority.Add(edbo[i]);
+                    lowestPriority.Add(edbo[i]);
                 }
                 if (i == edbo.Count - 2)
                 {
-                    LowestPriority.Add(edbo[i + 1]);
+                    lowestPriority.Add(edbo[i + 1]);
                 }
             }
-            return LowestPriority;
+            return lowestPriority;
         }
 
         //додаємо отриманого абітурієнта у відповідний рейтинговий список
@@ -211,7 +215,6 @@ namespace RatingCalculator
         //Бульбашкове сортування по значенню рейтингу
         private static void sortListByRating(List<Entrant> rating)
         {
-
             for (int i = 0; i < rating.Count - 1; i++)
             {
                 for (int j = 0; j < rating.Count - i - 1; j++)
@@ -261,7 +264,6 @@ namespace RatingCalculator
                     // Записуємо заголовок CSV файлу
                     writer.WriteLine("ПІБ;Пріорітет;Номер спеціальності;Спеціальність;Заг. бал");
 
-
                     // Записуємо дані абітурієнтів у CSV файл
                     foreach (var ent in rating)
                     {
@@ -285,9 +287,9 @@ namespace RatingCalculator
             }
         }
 
-        private static List<Entrant> mergeLists(List<List<Entrant>> rating)
+        private static void mergeLists(List<List<Entrant>> rating, out List<Entrant> mergeList)
         {
-            List<Entrant> mergeList = new List<Entrant>();
+            mergeList = new List<Entrant>();
 
             foreach (var spec in rating)
             {
@@ -297,12 +299,12 @@ namespace RatingCalculator
                 }
             }
             sortListByRating(mergeList);
-            return mergeList;
+            return;
         }
 
-        private static List<List<Entrant>> distributionBySpecialtyNumber(List<List<Entrant>> rating, List<int> uniqueNumSpec)
+        private static void distributionBySpecialtyNumber(List<List<Entrant>> rating, List<int> uniqueNumSpec, out List<List<Entrant>> distributedList)
         {
-            List<List<Entrant>> distributedList = new List<List<Entrant>>();
+            distributedList = new List<List<Entrant>>();
 
             for (int a = 0; a < uniqueNumSpec.Count; a++)
             {
@@ -326,16 +328,15 @@ namespace RatingCalculator
             {
                 sortListByRating(numSpec);
             }
-                       return distributedList;
+                       return;
         }
 
-        private static List<Entrant> calculationOfThePercentagePosition(List<Entrant> rating)
+        private static void calculationOfThePercentagePosition(List<Entrant> rating)
         {
             for (int f = rating.Count - 1; f >= 0; f--)
             {
                 rating[f].percent = ((double)(f + 1) / rating.Count) * 100;
             }
-            return rating;
         }
     }
 }
