@@ -1,10 +1,10 @@
 ﻿namespace RatingCalculator
 {
-    internal class Entrant
+    public class Entrant
     {
-        public Entrant() { }
         public Entrant(string fullname, int priority, double score, string specialty, int numSpecialty, int sizeSpecialty)
         {
+
             FullName = fullname;
             Priority = priority;
             Score = score;
@@ -12,13 +12,22 @@
             NumSpecialty = numSpecialty;
             SizeSpecialty = sizeSpecialty;
         }
+        public Entrant()
+        {
+            FullName = "default";
+            Specialty= "default";
+        }
+
         // Клас для представлення абітурієнтів
-        public string FullName { get; set; }
-        public int Priority { get; set; }
-        public double Score { get; set; }
-        public string Specialty { get; set; }
-        public int NumSpecialty { get; set; }
-        public int SizeSpecialty { get; set; }
-        public double Percent { get; set; }
+        internal string FullName { get; set; }
+        internal int Priority { get; set; }
+        internal double Score { get; set; }
+        internal string Specialty { get; set; }
+        internal int NumSpecialty { get; set; }
+        internal int SizeSpecialty { get; set; }
+        internal double Percent { get; set; }
     }
+
+
 }
+

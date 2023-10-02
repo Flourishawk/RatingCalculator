@@ -1,29 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Linq;
-
-namespace RatingCalculator
+﻿namespace RatingCalculator
 {
-    internal class Program
+    internal static class Program
     {
         static void Main()
         {
-            //додаю українську і
-            Console.OutputEncoding = Encoding.GetEncoding(1251);
 
             //загальні списки та рейтинги до спеціальностей
-            List<List<Entrant>> edbo = new List<List<Entrant>>();//список усіх студентів усіх спеціальностей
-            List<List<Entrant>> rating = new List<List<Entrant>>();
-            List<List<Entrant>> firstRunList = new List<List<Entrant>>();//Список студентів на спеціальності з найменшим пріорітетом
+            List<List<Entrant>> edbo = new();//список усіх студентів усіх спеціальностей
+            List<List<Entrant>> rating = new();
+            List<List<Entrant>> firstRunList = new();//Список студентів на спеціальності з найменшим пріорітетом
 
             //базова частина для шляху файлів
-            string baseExportFilePath = Path.Combine(Environment.CurrentDirectory, "..", "..", "Export");
-            string baseImportFilePath = Path.Combine(Environment.CurrentDirectory, "..", "..", "Import");
+            string baseExportFilePath = Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "Export\\");
+            string baseImportFilePath = Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "Import");
 
             //шляхи до даних
-            List<string> filePaths = new List<string>(Directory.GetFiles(baseImportFilePath, "*.csv"));
+            List<string> filePaths = new(Directory.GetFiles(baseImportFilePath, "*.csv"));
 
             int countSpeciality = filePaths.Count;
 
@@ -46,17 +38,17 @@ namespace RatingCalculator
             //зчитування даних з файлів у загальний список абітурієнтів
             foreach (string filePath in filePaths)
             {
-                using (StreamReader reader = new StreamReader(filePath, Encoding.UTF8))
+                using (StreamReader reader = new(filePath, Encoding.UTF8))
                 {
                     while (!reader.EndOfStream)
                     {
-                        string line = reader.ReadLine();
+                        string? line = reader.ReadLine() ?? "";
                         string[] fields = line.Split(';');//Розділити рядок на поля
 
                         //прибираю значення контрактників та квотників
                         if (fields[1] == "1" || fields[1] == "2" || fields[1] == "3" || fields[1] == "4" || fields[1] == "5")
                         {
-                            Entrant newEntrant = new Entrant(fields[0], int.Parse(fields[1]), double.Parse(fields[2]), fields[3], int.Parse(fields[4]), int.Parse(fields[5]));
+                            Entrant newEntrant = new(fields[0], int.Parse(fields[1]), double.Parse(fields[2]), fields[3], int.Parse(fields[4]), int.Parse(fields[5]));
                             edbo[countSpeciality].Add(newEntrant);
                         }
                     }
@@ -103,6 +95,7 @@ namespace RatingCalculator
                 }
             }
 
+            
             //Створення файлу з результатами для вступу
             foreach (var spec in rating)
             {
@@ -118,10 +111,13 @@ namespace RatingCalculator
 
             //Створення файлу з результатами для стипендій
             CreateCSVFile(studentsRating2, ratingFilePath);
+
+
+            ConsoleTest();
         }
 
         //Пошук наступного пріорітету для абітурієнта, який не пройшов по поточному
-        private static Entrant FindTheFollowingPriority(List<List<Entrant>> edbo, Entrant ent, int priority)
+        private static Entrant? FindTheFollowingPriority(List<List<Entrant>> edbo, Entrant ent, int priority)
         {
             foreach (var spec in edbo)
             {
@@ -138,7 +134,7 @@ namespace RatingCalculator
 
         private static List<Entrant> AllocationLowestPriority(List<Entrant> edbo)
         {
-            List<Entrant> LowestPriority = new List<Entrant>();
+            List<Entrant> LowestPriority = new();
 
             for (int i = 0; i < edbo.Count - 1; i++)
             {
@@ -202,7 +198,7 @@ namespace RatingCalculator
                     if (e >= rating[d][0].SizeSpecialty)
                     {
                         SortListByRating(rating[d]);
-                        Entrant newEntrant = FindTheFollowingPriority(edbo, rating[d][e], rating[d][e].Priority);
+                        Entrant? newEntrant = FindTheFollowingPriority(edbo, rating[d][e], rating[d][e].Priority);
                         if (newEntrant != null)
                         {
                             AddToRating(rating, newEntrant, uniqueSpecialties);
@@ -216,8 +212,7 @@ namespace RatingCalculator
         private static void CreateCSVFile(List<Entrant> rating, string filePath)
         {
 
-            using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
-            {
+                using StreamWriter writer = new(filePath, false, Encoding.UTF8);
                 // Записуємо заголовок CSV файлу
                 writer.WriteLine("ПІБ;Пріорітет;Заг_бал;Спеціальність");
 
@@ -227,12 +222,11 @@ namespace RatingCalculator
                 {
                     writer.WriteLine($"{ent.FullName};{ent.Score};{ent.Percent}");
                 }
-            }
         }
 
         private static List<Entrant> MergeLists(List<List<Entrant>> rating)
         {
-            List<Entrant> mergeList = new List<Entrant>();
+            List<Entrant> mergeList = new();
 
             foreach (var spec in rating)
             {
@@ -256,17 +250,10 @@ namespace RatingCalculator
             return rating;
         }
 
-        private static void CosnoleTest(params int[] de1f)
+        private static void ConsoleTest()
         {
-            Console.WriteLine("Перше {0} Друге {1}");
-            Console.ReadLine();
-            sum();
-            return;
-
-            void sum()
-            {
-                return;
-            }
+            Console.WriteLine("");
         }
+
     }
 }
