@@ -18,16 +18,14 @@
             Specialty= "default";
         }
 
-        // Клас для представлення абітурієнтів
-        internal string FullName { get; set; }
-        internal int Priority { get; set; }
-        internal double Score { get; set; }
-        internal string Specialty { get; set; }
-        internal int NumSpecialty { get; set; }
-        internal int SizeSpecialty { get; set; }
+        
+        internal readonly string FullName;
+        internal int Priority { get;}
+        internal double Score { get;}
+        internal string Specialty { get;}
+        internal int NumSpecialty { get;}
+        internal int SizeSpecialty { get;}
         internal double Percent { get; set; }
     }
-
-
 }
 
