@@ -4,20 +4,18 @@ using BenchmarkDotNet.Diagnosers;
 using System.Diagnostics.CodeAnalysis;
 using static RatingCalculator.RatingCreator;
 
+
 namespace MyBenchmark
 {
     [MemoryDiagnoser]
-    internal class MyFirstBench
+    public class MyFirstBench
     {
         private int CountSpeciality { get; set; }
         private List<string>? FilePaths { get; set; }
-        private List<List<Entrant>> edbo = new();
-        private List<Entrant> studentsRating = new();
-        private string ratingFilePath = "";
 
-        [NotNull] private List<List<Entrant>> Edbo { get => edbo; set => edbo = Edbo; }
-        [NotNull] private List<Entrant> StudentsRating { get => studentsRating; set => studentsRating = StudentsRating; }
-        [NotNull] private string RatingFilePath { get => ratingFilePath; set => ratingFilePath = RatingFilePath; }
+        [NotNull] private List<List<Entrant>> Edbo { get; set; } = new List<List<Entrant>>();
+        [NotNull] private List<Entrant> StudentsRating { get; set; } = new List<Entrant>();
+        [NotNull] private string RatingFilePath { get; set; } = "";
 
         [GlobalSetup]
         public void Setup()
@@ -27,13 +25,13 @@ namespace MyBenchmark
             FilePaths = new(Directory.GetFiles(baseImportFilePath, "*.csv"));
             if (FilePaths is null)
             {
-                throw new Exception("Неможливий filePath");
+                throw new MyCustomException("Неможливий filePath");
             }
 
             CountSpeciality = FilePaths.Count;
             if (CountSpeciality == 0)
             {
-                throw new Exception("Кількість спеціальностей = 0");
+                throw new MyCustomException("Кількість спеціальностей = 0");
             }
             for (int a = 0; a < CountSpeciality; a++)
             {
